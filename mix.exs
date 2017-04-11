@@ -2,12 +2,14 @@ defmodule RethinkDB.Changefeed.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :rethinkdb_changefeed,
-     version: "0.0.1",
-     elixir: "~> 1.2",
-     description: "RethinkDB Supervised Changefeeds",
-     package: package,
-     deps: deps]
+    [
+      app: :rethinkdb_changefeed,
+      version: "0.0.1",
+      elixir: "~> 1.2",
+      description: "RethinkDB Supervised Changefeeds",
+      package: package(),
+      deps: deps()
+   ]
   end
 
   def package do
@@ -40,11 +42,7 @@ defmodule RethinkDB.Changefeed.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:rethinkdb, "~> 0.4.0"},
-      {:connection, "~> 1.0.1"},
-      {:earmark, "~> 0.1", only: :dev},
-      {:ex_doc, "~> 0.7", only: :dev},
-      {:flaky_connection, github: "hamiltop/flaky_connection", only: :test}
+      {:rethinkdb, github: "cohawk/rethinkdb-elixir", override: true},
     ]
   end
 end
