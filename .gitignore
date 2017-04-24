@@ -3,3 +3,9 @@
 /deps
 erl_crash.dump
 *.ez
+
+# OSX
+.DS_Store
+
+# RethinkDB Data
+/rethinkdb_data

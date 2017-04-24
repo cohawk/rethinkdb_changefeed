@@ -43,6 +43,7 @@ defmodule RethinkDB.Changefeed.Mixfile do
   defp deps do
     [
       {:rethinkdb, github: "cohawk/rethinkdb-elixir", override: true},
+      {:flaky_connection, github: "hamiltop/flaky_connection", only: :test}
     ]
   end
 end

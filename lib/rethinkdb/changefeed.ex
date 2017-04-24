@@ -101,7 +101,6 @@ defmodule RethinkDB.Changefeed do
       end
 
   """
-  use Behaviour
 
   use Connection
 
@@ -125,7 +124,7 @@ defmodule RethinkDB.Changefeed do
     process will exit with reason `reason`
 
   """
-  defcallback init(opts :: any) :: any
+  @callback init(opts :: any) :: any
 
   @doc """
     Called when new data is received from a feed.
@@ -137,32 +136,32 @@ defmodule RethinkDB.Changefeed do
     `reason` and `state`
 
   """
-  defcallback handle_update(update :: any, state :: any) :: any
+  @callback handle_update(update :: any, state :: any) :: any
 
   @doc """
     See `GenServer.handle_call/3`
   """
-  defcallback handle_call(request :: any, from :: any, state :: any) :: any
+  @callback handle_call(request :: any, from :: any, state :: any) :: any
 
   @doc """
     See `GenServer.handle_cast/2`
   """
-  defcallback handle_cast(request :: any, state :: any) :: any
+  @callback handle_cast(request :: any, state :: any) :: any
 
   @doc """
     See `GenServer.handle_info/2`
   """
-  defcallback handle_info(msg :: any, state :: any) :: any
+  @callback handle_info(msg :: any, state :: any) :: any
 
   @doc """
     See `GenServer.code_change/3`
   """
-  defcallback code_change(vsn :: any, state :: any, extra :: any) :: any
+  @callback code_change(vsn :: any, state :: any, extra :: any) :: any
 
   @doc """
     See `GenServer.terminate/2`
   """
-  defcallback terminate(reason :: any, state :: any) :: any
+  @callback terminate(reason :: any, state :: any) :: any
 
   @doc """
     See `GenServer.call/3`
@@ -183,12 +182,14 @@ defmodule RethinkDB.Changefeed do
     `args` will be passed into `init`. `opts` are standard GenServer options.
   """
   def start_link(mod, args, opts) do
-    Connection.start_link(__MODULE__,
-      [mod: mod, args: args],
-      opts)
+    IO.inspect(mod, label: "start_link(mod)")
+    IO.inspect(args, label: "start_link(args)")
+    IO.inspect(opts, label: "start_link(opts)")
+    Connection.start_link(__MODULE__, [mod: mod, args: args], opts)
   end
 
   def init(opts) do
+    IO.inspect(opts, label: "init(opts)")
     mod = Dict.get(opts, :mod)
     args = Dict.get(opts, :args)
     {:subscribe, query, conn, feed_state} = mod.init(args)
@@ -199,6 +200,7 @@ defmodule RethinkDB.Changefeed do
       opts: opts,
       state: :connect
     }
+    IO.inspect(state, label: "init(state)")
     {:connect, :init, state}
   end
 
