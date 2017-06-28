@@ -148,10 +148,24 @@ defmodule RethinkDB.Changefeed do
   """
   @callback handle_cast(request :: any, state :: any) :: any
 
+
   @doc """
     See `GenServer.handle_info/2`
-  """
+
   @callback handle_info(msg :: any, state :: any) :: any
+
+  Called when the process receives a message that is not a call or cast. This
+  callback has the same arguments as the `GenServer` equivalent and the `:noreply`
+  and `:stop` return tuples behave the same. However there are two additional
+  return values:
+  Returning `{:connect, info, state}` will immediately call
+  `connect(info, state)`. Similarly for `{:disconnect, info, state}`,
+  except `disconnect/2` is called.
+  """
+  @callback handle_info(any, any) ::
+    {:noreply, any} | {:noreply, any, timeout | :hibernate} |
+    {:disconnect | :connect, any, any} |
+    {:stop, any, any}
 
   @doc """
     See `GenServer.code_change/3`
@@ -278,6 +292,7 @@ defmodule RethinkDB.Changefeed do
   end
 
   # TODO: handle_info pass through to callback. Look at Connection to see how they deal with it.
+  ## TODO
 
   def handle_info({ref, msg}, state = %{state: :next, task: %Task{ref: ref}}) do
     Process.demonitor(ref, [:flush])
