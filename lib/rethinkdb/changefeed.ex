@@ -53,13 +53,13 @@ defmodule RethinkDB.Changefeed do
           team = Enum.reduce(data, team, fn ->
             # no `old_val` means a new entry was created
             %{"new_val" => val, "old_val" => nil}, acc -> 
-              Keyword.put(acc, val["id"], val)
+              Map.put(acc, val["id"], val)
             # no `new_val` means an entry was deleted
             %{"new_val" => nil, "old_val" => val}, acc -> 
-              Keyword.delete(acc, val["id"])
+              Map.delete(acc, val["id"])
             # otherwise, we have an update
             %{"new_val" => val}, acc ->
-              Keyword.put(acc, val["id"], val)
+              Map.put(acc, val["id"], val)
           end)
           {:next, team}
         end
@@ -209,21 +209,21 @@ defmodule RethinkDB.Changefeed do
     case RethinkDB.run(query, conn, [timeout: :infinity]) do
       msg = %RethinkDB.Feed{} ->
         mod = get_in(state, [:opts, :mod])
-        feed_state = Keyword.get(state, :feed_state)
+        feed_state = Map.get(state, :feed_state)
         {:next, feed_state} = mod.handle_update(msg.data, feed_state)
         new_state = state
-          |> Keyword.put(:task, next(msg))
-          |> Keyword.put(:last, msg)
-          |> Keyword.put(:feed_state, feed_state)
-          |> Keyword.put(:state, :next)
+          |> Map.put(:task, next(msg))
+          |> Map.put(:last, msg)
+          |> Map.put(:feed_state, feed_state)
+          |> Map.put(:state, :next)
         {:ok, new_state}
       x ->
         IO.puts("ERROR changefeed connect/2 X")
         Logger.debug(inspect x)
         IO.inspect(state, label: "INSPECT ERROR changefeed connect/2 state")
-        backoff = min(Keyword.get(state, :timeout, 1000), 64000)
+        backoff = min(Map.get(state, :timeout, 1000), 64000)
         IO.inspect(backoff, label: "INSPECT ERROR changefeed connect/2 backoff")
-        {:backoff, backoff, Keyword.put(state, :timeout, backoff*2)}
+        {:backoff, backoff, Map.put(state, :timeout, backoff*2)}
     end
   end
 
@@ -234,41 +234,41 @@ defmodule RethinkDB.Changefeed do
 
   def handle_call(msg, from, state) do
     mod = get_in(state, [:opts, :mod])
-    feed_state = Keyword.get(state, :feed_state)
+    feed_state = Map.get(state, :feed_state)
     case mod.handle_call(msg, from, feed_state) do
       {:reply, reply, new_feed_state} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:reply, reply, new_state}
       {:reply, reply, new_feed_state, timeout} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:reply, reply, new_state, timeout}
       {:noreply, new_feed_state} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:noreply, new_state}
       {:noreply, new_feed_state, timeout} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:noreply, new_state, timeout}
       {:stop, reason, reply, new_feed_state} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:stop, reason, reply, new_state}
       {:stop, reason, new_feed_state} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:stop, reason, new_state}
     end
   end
 
   def handle_cast(msg, state) do
     mod = get_in(state, [:opts, :mod])
-    feed_state = Keyword.get(state, :feed_state)
+    feed_state = Map.get(state, :feed_state)
     case mod.handle_cast(msg, feed_state) do
       {:noreply, new_feed_state} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:noreply, new_state}
       {:noreply, new_feed_state, timeout} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:noreply, new_state, timeout}
       {:stop, reason, new_feed_state} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:stop, reason, new_state}
     end
   end
@@ -280,12 +280,12 @@ defmodule RethinkDB.Changefeed do
     case msg do
       %RethinkDB.Feed{data: data} ->
         mod = get_in(state, [:opts, :mod])
-        feed_state = Keyword.get(state, :feed_state)
+        feed_state = Map.get(state, :feed_state)
         {:next, feed_state} = mod.handle_update(data, feed_state)
         new_state = state
-          |> Keyword.put(:task, next(msg))
-          |> Keyword.put(:feed_state, feed_state)
-          |> Keyword.put(:last, msg)
+          |> Map.put(:task, next(msg))
+          |> Map.put(:feed_state, feed_state)
+          |> Map.put(:last, msg)
         {:noreply, new_state}
       _ ->
         {:stop, :rethinkdb_error, state}
@@ -294,23 +294,23 @@ defmodule RethinkDB.Changefeed do
 
   def handle_info(msg, state) do
     mod = get_in(state, [:opts, :mod])
-    feed_state = Keyword.get(state, :feed_state)
+    feed_state = Map.get(state, :feed_state)
     case mod.handle_info(msg, feed_state) do
       {:noreply, new_feed_state} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:noreply, new_state}
       {:noreply, new_feed_state, timeout} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:noreply, new_state, timeout}
       {:stop, reason, new_feed_state} ->
-        new_state = Keyword.put(state, :feed_state, new_feed_state)
+        new_state = Map.put(state, :feed_state, new_feed_state)
         {:stop, reason, new_state}
     end
   end
 
   def code_change(old_vsn, state, extra) do
     mod = get_in(state, [:opts, :mod])
-    feed_state = Keyword.get(state, :feed_state)
+    feed_state = Map.get(state, :feed_state)
     case mod.code_change(old_vsn, feed_state, extra) do
       {:ok, new_feed_state} -> {:ok, %{state | :feed_state => new_feed_state}}
       {:error, reason} -> {:error, reason}
