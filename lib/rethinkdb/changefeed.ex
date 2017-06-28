@@ -12,8 +12,8 @@ defmodule RethinkDB.Changefeed do
         use RethinkDB.Changefeed
 
         def init(opts) do
-          id = Dict.get(opts, :id)
-          db = Dict.get(opts, :db)
+          id = Keyword.get(opts, :id)
+          db = Keyword.get(opts, :db)
           query = RethinkDB.Query.table("people")
             |> RethinkDB.Query.get(id)
             |> RethinkDB.Query.changes
@@ -40,9 +40,9 @@ defmodule RethinkDB.Changefeed do
         use RethinkDB.Changefeed
 
         def init(opts) do
-          name = Dict.get(opts, :name)
-          team = Dict.get(opts, :team) # team is a map of ids to maps
-          db = Dict.get(opts, :db)
+          name = Keyword.get(opts, :name)
+          team = Keyword.get(opts, :team) # team is a map of ids to maps
+          db = Keyword.get(opts, :db)
           query = RethinkDB.Query.table("people")
             |> RethinkDB.Query.filter(%{team: name})
             |> RethinkDB.Query.changes
@@ -53,13 +53,13 @@ defmodule RethinkDB.Changefeed do
           team = Enum.reduce(data, team, fn ->
             # no `old_val` means a new entry was created
             %{"new_val" => val, "old_val" => nil}, acc -> 
-              Dict.put(acc, val["id"], val)
+              Keyword.put(acc, val["id"], val)
             # no `new_val` means an entry was deleted
             %{"new_val" => nil, "old_val" => val}, acc -> 
-              Dict.delete(acc, val["id"])
+              Keyword.delete(acc, val["id"])
             # otherwise, we have an update
             %{"new_val" => val}, acc ->
-              Dict.put(acc, val["id"], val)
+              Keyword.put(acc, val["id"], val)
           end)
           {:next, team}
         end
@@ -77,8 +77,8 @@ defmodule RethinkDB.Changefeed do
         
         use RethinkDB.Changefeed
         def init(opts) do
-          gen_event = Dict.get(opts, :gen_event)
-          db = Dict.get(opts, :db)
+          gen_event = Keyword.get(opts, :gen_event)
+          db = Keyword.get(opts, :db)
           query = RethinkDB.Query.table("events")
             |> RethinkDB.Query.changes
           {:subscribe, query, db, gen_event}
@@ -182,16 +182,16 @@ defmodule RethinkDB.Changefeed do
     `args` will be passed into `init`. `opts` are standard GenServer options.
   """
   def start_link(mod, args, opts) do
-    IO.inspect(mod, label: "start_link(mod)")
-    IO.inspect(args, label: "start_link(args)")
-    IO.inspect(opts, label: "start_link(opts)")
+    IO.inspect(mod, label: "INSPECT changefeed start_link/3 mod")
+    IO.inspect(args, label: "INSPECT changefeed start_link/3 args")
+    IO.inspect(opts, label: "INSPECT changefeed start_link/3 opts")
     Connection.start_link(__MODULE__, [mod: mod, args: args], opts)
   end
 
   def init(opts) do
-    IO.inspect(opts, label: "init(opts)")
-    mod = Dict.get(opts, :mod)
-    args = Dict.get(opts, :args)
+    IO.inspect(opts, label: "INSPECT init/1 opts")
+    mod = Keyword.get(opts, :mod)
+    args = Keyword.get(opts, :args)
     {:subscribe, query, conn, feed_state} = mod.init(args)
     state = %{
       query: query,
@@ -200,26 +200,28 @@ defmodule RethinkDB.Changefeed do
       opts: opts,
       state: :connect
     }
-    IO.inspect(state, label: "init(state)")
+    IO.inspect(state, label: "INSPECT changefeed init/1 state")
     {:connect, :init, state}
   end
 
   def connect(_info, state = %{query: query, conn: conn}) do
-    case RethinkDB.run(query, conn, %{timeout: :infinity}) do
+    IO.inspect(state, label: "INSPECT changefeed connect/2 state")
+    case RethinkDB.run(query, conn, [timeout: :infinity]) do
       msg = %RethinkDB.Feed{} ->
         mod = get_in(state, [:opts, :mod])
-        feed_state = Dict.get(state, :feed_state)
+        feed_state = Keyword.get(state, :feed_state)
         {:next, feed_state} = mod.handle_update(msg.data, feed_state)
         new_state = state
-          |> Dict.put(:task, next(msg))
-          |> Dict.put(:last, msg)
-          |> Dict.put(:feed_state, feed_state)
-          |> Dict.put(:state, :next)
+          |> Keyword.put(:task, next(msg))
+          |> Keyword.put(:last, msg)
+          |> Keyword.put(:feed_state, feed_state)
+          |> Keyword.put(:state, :next)
         {:ok, new_state}
       x ->
+        IO.puts("ERROR changefeed connect/2 X")
         Logger.debug(inspect x)
-        backoff = min(Dict.get(state, :timeout, 1000), 64000)
-        {:backoff, backoff, Dict.put(state, :timeout, backoff*2)}
+        backoff = min(Keyword.get(state, :timeout, 1000), 64000)
+        {:backoff, backoff, Keyword.put(state, :timeout, backoff*2)}
     end
   end
 
@@ -230,41 +232,41 @@ defmodule RethinkDB.Changefeed do
 
   def handle_call(msg, from, state) do
     mod = get_in(state, [:opts, :mod])
-    feed_state = Dict.get(state, :feed_state)
+    feed_state = Keyword.get(state, :feed_state)
     case mod.handle_call(msg, from, feed_state) do
       {:reply, reply, new_feed_state} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:reply, reply, new_state}
       {:reply, reply, new_feed_state, timeout} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:reply, reply, new_state, timeout}
       {:noreply, new_feed_state} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:noreply, new_state}
       {:noreply, new_feed_state, timeout} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:noreply, new_state, timeout}
       {:stop, reason, reply, new_feed_state} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:stop, reason, reply, new_state}
       {:stop, reason, new_feed_state} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:stop, reason, new_state}
     end
   end
 
   def handle_cast(msg, state) do
     mod = get_in(state, [:opts, :mod])
-    feed_state = Dict.get(state, :feed_state)
+    feed_state = Keyword.get(state, :feed_state)
     case mod.handle_cast(msg, feed_state) do
       {:noreply, new_feed_state} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:noreply, new_state}
       {:noreply, new_feed_state, timeout} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:noreply, new_state, timeout}
       {:stop, reason, new_feed_state} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:stop, reason, new_state}
     end
   end
@@ -276,12 +278,12 @@ defmodule RethinkDB.Changefeed do
     case msg do
       %RethinkDB.Feed{data: data} ->
         mod = get_in(state, [:opts, :mod])
-        feed_state = Dict.get(state, :feed_state)
+        feed_state = Keyword.get(state, :feed_state)
         {:next, feed_state} = mod.handle_update(data, feed_state)
         new_state = state
-          |> Dict.put(:task, next(msg))
-          |> Dict.put(:feed_state, feed_state)
-          |> Dict.put(:last, msg)
+          |> Keyword.put(:task, next(msg))
+          |> Keyword.put(:feed_state, feed_state)
+          |> Keyword.put(:last, msg)
         {:noreply, new_state}
       _ ->
         {:stop, :rethinkdb_error, state}
@@ -290,23 +292,23 @@ defmodule RethinkDB.Changefeed do
 
   def handle_info(msg, state) do
     mod = get_in(state, [:opts, :mod])
-    feed_state = Dict.get(state, :feed_state)
+    feed_state = Keyword.get(state, :feed_state)
     case mod.handle_info(msg, feed_state) do
       {:noreply, new_feed_state} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:noreply, new_state}
       {:noreply, new_feed_state, timeout} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:noreply, new_state, timeout}
       {:stop, reason, new_feed_state} ->
-        new_state = Dict.put(state, :feed_state, new_feed_state)
+        new_state = Keyword.put(state, :feed_state, new_feed_state)
         {:stop, reason, new_state}
     end
   end
 
   def code_change(old_vsn, state, extra) do
     mod = get_in(state, [:opts, :mod])
-    feed_state = Dict.get(state, :feed_state)
+    feed_state = Keyword.get(state, :feed_state)
     case mod.code_change(old_vsn, feed_state, extra) do
       {:ok, new_feed_state} -> {:ok, %{state | :feed_state => new_feed_state}}
       {:error, reason} -> {:error, reason}
@@ -314,9 +316,14 @@ defmodule RethinkDB.Changefeed do
   end
 
   def terminate(reason, state) do
+    IO.inspect(reason, label: "INSPECT changefeed terminate/2 reason")
+    IO.inspect(state, label: "INSPECT changefeed terminate/2 state")
     mod = get_in(state, [:opts, :mod])
-    feed_state = Dict.get(state, :feed_state)
-    mod.terminate(reason, feed_state)
+    IO.inspect(mod, label: "INSPECT changefeed terminate/2 mod")
+    # feed_state = Keyword.get(state, :feed_state)
+    feed_state = Map.get(state, :feed_state)
+    IO.inspect(feed_state, label: "INSPECT changefeed terminate/2 feed_state")
+    # mod.terminate(reason, feed_state)
   end
 
   defp next(f = %RethinkDB.Feed{}) do
