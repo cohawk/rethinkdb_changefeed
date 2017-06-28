@@ -207,7 +207,7 @@ defmodule RethinkDB.Changefeed do
   def connect(_info, state = %{query: query, conn: conn}) do
     IO.inspect(state, label: "INSPECT changefeed connect/2 state")
     case RethinkDB.run(query, conn, [timeout: :infinity]) do
-      msg = %RethinkDB.Feed{} ->
+      {:ok, msg = %RethinkDB.Feed{}} ->
         mod = get_in(state, [:opts, :mod])
         feed_state = Map.get(state, :feed_state)
         {:next, feed_state} = mod.handle_update(msg.data, feed_state)
@@ -217,13 +217,17 @@ defmodule RethinkDB.Changefeed do
           |> Map.put(:feed_state, feed_state)
           |> Map.put(:state, :next)
         {:ok, new_state}
-      x ->
+      {:ok, x} ->
         IO.puts("ERROR changefeed connect/2 X")
         Logger.debug(inspect x)
         IO.inspect(state, label: "INSPECT ERROR changefeed connect/2 state")
         backoff = min(Map.get(state, :timeout, 1000), 64000)
         IO.inspect(backoff, label: "INSPECT ERROR changefeed connect/2 backoff")
         {:backoff, backoff, Map.put(state, :timeout, backoff*2)}
+      {:error, %{data: %{"r" => [error|_]}}} ->
+        raise error
+      {:error, %RethinkDB.Exception.ConnectionClosed{}} ->
+        {:error, :connection_closed}
     end
   end
 
