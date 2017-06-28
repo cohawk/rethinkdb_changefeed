@@ -220,7 +220,9 @@ defmodule RethinkDB.Changefeed do
       x ->
         IO.puts("ERROR changefeed connect/2 X")
         Logger.debug(inspect x)
+        IO.inspect(state, label: "INSPECT ERROR changefeed connect/2 state")
         backoff = min(Keyword.get(state, :timeout, 1000), 64000)
+        IO.inspect(backoff, label: "INSPECT ERROR changefeed connect/2 backoff")
         {:backoff, backoff, Keyword.put(state, :timeout, backoff*2)}
     end
   end
