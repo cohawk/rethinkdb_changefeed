@@ -292,7 +292,7 @@ defmodule RethinkDB.Changefeed do
           |> Map.put(:last, msg)
         {:noreply, new_state}
       _ ->
-        {:stop, :rethinkdb_error, state}
+        {:stop, :cohawk_rethinkdb_error, state}
     end
   end
 
