@@ -183,14 +183,14 @@ defmodule RethinkDB.Changefeed do
     `args` will be passed into `init`. `opts` are standard GenServer options.
   """
   def start_link(mod, args, opts) do
-    IO.inspect(mod, label: "INSPECT changefeed start_link/3 mod")
-    IO.inspect(args, label: "INSPECT changefeed start_link/3 args")
-    IO.inspect(opts, label: "INSPECT changefeed start_link/3 opts")
+    # IO.inspect(mod, label: "INSPECT changefeed start_link/3 mod")
+    # IO.inspect(args, label: "INSPECT changefeed start_link/3 args")
+    # IO.inspect(opts, label: "INSPECT changefeed start_link/3 opts")
     Connection.start_link(__MODULE__, [mod: mod, args: args], opts)
   end
 
   def init(opts) do
-    IO.inspect(opts, label: "INSPECT init/1 opts")
+    # IO.inspect(opts, label: "INSPECT init/1 opts")
     mod = Keyword.get(opts, :mod)
     args = Keyword.get(opts, :args)
     {:subscribe, query, conn, feed_state} = mod.init(args)
@@ -201,14 +201,14 @@ defmodule RethinkDB.Changefeed do
       opts: opts,
       state: :connect
     }
-    IO.inspect(state, label: "INSPECT changefeed init/1 state")
+    # IO.inspect(state, label: "INSPECT changefeed init/1 state")
     {:connect, :init, state}
   end
 
   def connect(_info, state = %{query: query, conn: conn}) do
-    IO.inspect(state, label: "INSPECT changefeed connect/2 state")
+    # IO.inspect(state, label: "INSPECT changefeed connect/2 state")
     case RethinkDB.run(query, conn, [timeout: :infinity]) do
-      {:ok, msg = %RethinkDB.Feed{}} ->
+      msg = %RethinkDB.Feed{} ->
         mod = get_in(state, [:opts, :mod])
         feed_state = Map.get(state, :feed_state)
         {:next, feed_state} = mod.handle_update(msg.data, feed_state)
@@ -218,17 +218,13 @@ defmodule RethinkDB.Changefeed do
           |> Map.put(:feed_state, feed_state)
           |> Map.put(:state, :next)
         {:ok, new_state}
-      {:ok, x} ->
+      x ->
         IO.puts("ERROR changefeed connect/2 X")
         Logger.debug(inspect x)
         IO.inspect(state, label: "INSPECT ERROR changefeed connect/2 state")
         backoff = min(Map.get(state, :timeout, 1000), 64000)
         IO.inspect(backoff, label: "INSPECT ERROR changefeed connect/2 backoff")
         {:backoff, backoff, Map.put(state, :timeout, backoff*2)}
-      {:error, %{data: %{"r" => [error|_]}}} ->
-        raise error
-      {:error, %RethinkDB.Exception.ConnectionClosed{}} ->
-        {:error, :connection_closed}
     end
   end
 
